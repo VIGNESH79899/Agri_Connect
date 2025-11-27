@@ -22,22 +22,23 @@ export default async function handler(req, res) {
         {
           role: "system",
           content:
-            "You are an expert Indian agronomist. Analyze crop images for diseases, pests, nutrient deficiencies, water stress, and give clear, actionable instructions."
+            "You are an expert Indian agronomist. Analyze crop images for diseases, pests, nutrient deficiencies, and water stress. Provide simple, actionable advice."
         },
         {
           role: "user",
           content: [
             {
-              type: "text",
+              type: "input_text",
               text: "Analyze this crop image and give step-by-step guidance."
             },
             {
-              type: "image_url",
-              image_url: { url: imageUrl }
+              type: "input_image",
+              image_url: imageUrl
             }
           ]
         }
-      ]
+      ],
+      max_tokens: 500
     });
 
     return res.status(200).json(completion);
