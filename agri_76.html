@@ -2178,216 +2178,168 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   async function analyzeCropWithOpenAI(dataUrl) {
-    const apiKey = ''
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert Indian agronomist. Analyze crop images for diseases, pests, nutrient deficiencies, water stress and give clear, actionable recommendations for smallholder farmers. Use simple language and bullet points.'
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Analyze this crop image. Identify the crop (if possible), detect any visible problems (diseases, pests, nutrient issues, water or soil problems), rate severity (low/medium/high) and give step-by-step recommendations including organic + chemical options where relevant.'
-              },
-              {
-                type: 'image_url',
-                image_url: { url: dataUrl }
-              }
-            ]
-          }
-        ],
-        temperature: 0.4,
-        max_tokens: 700
-      })
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: dataUrl })
     });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error('OpenAI API error: ' + errText);
-    }
 
     const json = await response.json();
-    const text = json.choices?.[0]?.message?.content || 'No analysis returned.';
-    return text.trim();
+    return json.choices?.[0]?.message?.content || "No analysis returned.";
+}
+
+// Field details: show phone and location
+const fieldDetails = {
+  'field-1': {
+    phone: '+919876543210',
+    location: 'Daulatpur, India',
+    maps: 'https://www.google.com/maps/search/?api=1&query=Daulatpur,India'
+  },
+  'field-2': {
+    phone: '+919812345678',
+    location: 'Rampur, India',
+    maps: 'https://www.google.com/maps/search/?api=1&query=Rampur,India'
   }
+};
 
-  // Field details: show phone and location
-  const fieldDetails = {
-    'field-1': {
-      phone: '+919876543210',
-      location: 'Daulatpur, India',
-      maps: 'https://www.google.com/maps/search/?api=1&query=Daulatpur,India'
-    },
-    'field-2': {
-      phone: '+919812345678',
-      location: 'Rampur, India',
-      maps: 'https://www.google.com/maps/search/?api=1&query=Rampur,India'
-    }
-  };
-  document.querySelectorAll('.btn-view-field').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      const info = fieldDetails[id];
-      if(info) {
-        toast(
-          'Phone: <a href="tel:' + info.phone + '">' + info.phone + '</a><br>' +
-          'Location: <a href="' + info.maps + '" target="_blank">' + info.location + '</a>'
-        );
-      } else {
-        toast('Details not found.');
-      }
-    });
-  });
-  document.querySelectorAll('.btn-call-owner').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const contact = btn.dataset.contact;
-      // Show prompt for WhatsApp or Phone
-      const method = prompt('Call via:\n1. WhatsApp\n2. Phone\nType 1 or 2:', '1');
-      if(method === '1') {
-        // WhatsApp: open chat
-        const waNum = contact.replace(/[^\d]/g, '');
-        window.open('https://wa.me/' + waNum, '_blank');
-      } else if(method === '2') {
-        // Phone: open dialer
-        window.location.href = 'tel:' + contact;
-      } else {
-        toast('Cancelled');
-      }
-    });
-  });
-
-  // -----------------------
-  // ALERTS: send with geolocation (simulated notifications)
-  // -----------------------
-  const sendAlertBtn = document.getElementById('sendAlertBtn');
-  const respondersList = document.getElementById('respondersList');
-
-  sendAlertBtn.addEventListener('click', () => {
-    const type = document.getElementById('alertType').value;
-    const msg = document.getElementById('alertMsg').value.trim();
-    if (!msg) { toast('Enter alert message'); return; }
-
-    // try to get location
-    toast('Sending alert...');
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const lat = pos.coords.latitude.toFixed(4);
-        const lon = pos.coords.longitude.toFixed(4);
-        // simulate notifying joined groups and showing responders
-        respondersList.innerHTML = '';
-        const li = document.createElement('li');
-        li.className = 'list-group-item';
-        li.textContent = `Alert sent (${type}) — location ${lat},${lon}. Notifying nearby farmers...`;
-        respondersList.appendChild(li);
-
-        // simulate responders arriving
-        setTimeout(()=> {
-          const r1 = document.createElement('li');
-          r1.className = 'list-group-item';
-          r1.textContent = 'Ram — Responding (10 mins)';
-          respondersList.appendChild(r1);
-          toast('Nearby farmers notified');
-        }, 1200);
-
-      }, (err) => {
-        respondersList.innerHTML = '<li class="list-group-item">Location not available. Alert sent without location.</li>';
-        toast('Location unavailable — alert sent');
-      }, { timeout:8000 });
+document.querySelectorAll('.btn-view-field').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.dataset.id;
+    const info = fieldDetails[id];
+    if(info) {
+      toast(
+        'Phone: <a href="tel:' + info.phone + '">' + info.phone + '</a><br>' +
+        'Location: <a href="' + info.maps + '" target="_blank">' + info.location + '</a>'
+      );
     } else {
-      respondersList.innerHTML = '<li class="list-group-item">Geolocation not supported.</li>';
-      toast('Geolocation not supported — alert sent');
+      toast('Details not found.');
+    }
+  });
+});
+
+document.querySelectorAll('.btn-call-owner').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const contact = btn.dataset.contact;
+    const method = prompt('Call via:\n1. WhatsApp\n2. Phone\nType 1 or 2:', '1');
+    if(method === '1') {
+      const waNum = contact.replace(/[^\d]/g, '');
+      window.open('https://wa.me/' + waNum, '_blank');
+    } else if(method === '2') {
+      window.location.href = 'tel:' + contact;
+    } else {
+      toast('Cancelled');
+    }
+  });
+});
+
+// ALERTS: send with geolocation
+const sendAlertBtn = document.getElementById('sendAlertBtn');
+const respondersList = document.getElementById('respondersList');
+
+sendAlertBtn.addEventListener('click', () => {
+  const type = document.getElementById('alertType').value;
+  const msg = document.getElementById('alertMsg').value.trim();
+  if (!msg) { toast('Enter alert message'); return; }
+
+  toast('Sending alert...');
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const lat = pos.coords.latitude.toFixed(4);
+      const lon = pos.coords.longitude.toFixed(4);
+
+      respondersList.innerHTML = '';
+      const li = document.createElement('li');
+      li.className = 'list-group-item';
+      li.textContent = `Alert sent (${type}) — location ${lat},${lon}. Notifying nearby farmers...`;
+      respondersList.appendChild(li);
+
+      setTimeout(()=> {
+        const r1 = document.createElement('li');
+        r1.className = 'list-group-item';
+        r1.textContent = 'Ram — Responding (10 mins)';
+        respondersList.appendChild(r1);
+        toast('Nearby farmers notified');
+      }, 1200);
+
+    }, (err) => {
+      respondersList.innerHTML = '<li class="list-group-item">Location not available. Alert sent without location.</li>';
+      toast('Location unavailable — alert sent');
+    }, { timeout:8000 });
+  } else {
+    respondersList.innerHTML = '<li class="list-group-item">Geolocation not supported.</li>';
+    toast('Geolocation not supported — alert sent');
+  }
+});
+
+document.getElementById('clearAlertBtn').addEventListener('click', () => {
+  document.getElementById('alertMsg').value = '';
+});
+
+// LANGUAGES — Translation System
+function applyTranslations(lang) {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (translations[lang] && translations[lang][key]) {
+      el.textContent = translations[lang][key];
+    } else if (translations['en'][key]) {
+      el.textContent = translations['en'][key];
     }
   });
 
-  document.getElementById('clearAlertBtn').addEventListener('click', () => {
-    document.getElementById('alertMsg').value = '';
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (translations[lang] && translations[lang][key]) {
+      el.placeholder = translations[lang][key];
+    } else if (translations['en'][key]) {
+      el.placeholder = translations['en'][key];
+    }
   });
 
-  // -----------------------
-  // LANGUAGES — Translation System
-  // -----------------------
-  function applyTranslations(lang) {
-    // Update all elements with data-i18n attributes
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      if (translations[lang] && translations[lang][key]) {
-        el.textContent = translations[lang][key];
-      } else if (translations['en'][key]) {
-        el.textContent = translations['en'][key];
-      }
-    });
-
-    // Update placeholders
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-      const key = el.getAttribute('data-i18n-placeholder');
-      if (translations[lang] && translations[lang][key]) {
-        el.placeholder = translations[lang][key];
-      } else if (translations['en'][key]) {
-        el.placeholder = translations['en'][key];
-      }
-    });
-
-    // Update titles / tooltips if any
-    document.querySelectorAll('[data-i18n-title]').forEach(el => {
-      const key = el.getAttribute('data-i18n-title');
-      if (translations[lang] && translations[lang][key]) {
-        el.title = translations[lang][key];
-      } else if (translations['en'][key]) {
-        el.title = translations['en'][key];
-      }
-    });
-
-    // Save language preference and html lang
-    document.documentElement.lang = lang;
-    localStorage.setItem('fc_lang', lang);
-
-    // Highlight active language in grid
-    document.querySelectorAll('.lang-item').forEach(item => {
-      item.classList.toggle('border-success', item.dataset.lang === lang);
-    });
-
-    toast(`Language set to: ${lang === 'en' ? 'English' : 
-      lang === 'hi' ? 'हिंदी' : 
-      lang === 'te' ? 'తెలుగు' : 
-      lang === 'ta' ? 'தமிழ்' : 
-      lang === 'kn' ? 'ಕನ್ನಡ' : lang}`);
-  }
-
-  // Initialize language selection
-  const langItems = document.querySelectorAll('.lang-item');
-  langItems.forEach(item => {
-    item.addEventListener('click', (e) => {
-      e.preventDefault();
-      const lang = item.dataset.lang;
-      applyTranslations(lang);
-    });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    if (translations[lang] && translations[lang][key]) {
+      el.title = translations[lang][key];
+    } else if (translations['en'][key]) {
+      el.title = translations['en'][key];
+    }
   });
 
-  // Restore saved language or default to English
-  const savedLang = localStorage.getItem('fc_lang') || 'en';
-  applyTranslations(savedLang);
+  document.documentElement.lang = lang;
+  localStorage.setItem('fc_lang', lang);
 
-  // Lazy-load lottie when visible
-  const lottieEl = document.querySelector('lottie-player');
-  if (lottieEl) {
-    const io = new IntersectionObserver(entries => {
-      entries.forEach(entry => { if (entry.isIntersecting) { lottieEl.play && lottieEl.play(); io.disconnect(); } });
-    }, { threshold: 0.2 });
-    io.observe(lottieEl);
-  }
+  document.querySelectorAll('.lang-item').forEach(item => {
+    item.classList.toggle('border-success', item.dataset.lang === lang);
+  });
 
-  // Accessibility: focus first group
-  document.querySelector('#groupList li')?.focus?.();
+  toast(`Language set to: ${lang}`);
+}
+
+const langItems = document.querySelectorAll('.lang-item');
+langItems.forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.preventDefault();
+    const lang = item.dataset.lang;
+    applyTranslations(lang);
+  });
+});
+
+const savedLang = localStorage.getItem('fc_lang') || 'en';
+applyTranslations(savedLang);
+
+const lottieEl = document.querySelector('lottie-player');
+if (lottieEl) {
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(entry => { 
+      if (entry.isIntersecting) { 
+        lottieEl.play && lottieEl.play(); 
+        io.disconnect(); 
+      }
+    });
+  }, { threshold: 0.2 });
+  io.observe(lottieEl);
+}
+
+document.querySelector('#groupList li')?.focus?.();
 
 </script>
 </body>
