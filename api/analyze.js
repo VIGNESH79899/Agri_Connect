@@ -1,7 +1,9 @@
 // api/analyze.js
 import OpenAI from "openai";
 import formidable from "formidable";
-import fs from "fs";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 export const config = {
   api: {
@@ -15,25 +17,50 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "Method not allowed" });
     }
     // Parse the uploaded file from form-data (field name: "image")
-    const form = formidable({ multiples: false });
+    const ALLOWED_UPLOAD_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 
-    const { files, fields } = await new Promise((resolve, reject) => {
+    const form = formidable({
+      multiples: false,
+      uploadDir: os.tmpdir(),
+      keepExtensions: true,
+      filter: (part) => {
+        // only accept common image mimetypes AND ensure filename has a safe image extension
+        const allowedMime = part?.mimetype?.startsWith?.('image/');
+        const name = part?.originalFilename ?? part?.filename ?? '';
+        const ext = name ? path.extname(name).toLowerCase() : '';
+        return Boolean(allowedMime && ALLOWED_UPLOAD_EXTS.has(ext));
+      },
+    });
+
+    const { files } = await new Promise((resolve, reject) => {
       form.parse(req, (err, fields, files) => {
         if (err) return reject(err);
         return resolve({ fields, files });
       });
     });
 
-    if (!files || !files.image) {
+    if (!files?.image) {
       return res.status(400).json({ error: "Image not uploaded" });
     }
 
     // Read the file and convert to base64 data URL (support multiple formidable versions)
     const img = files.image;
-    const imgPath = img.filepath || img.filePath || img.path;
+    const imgPath = img?.filepath ?? img?.filePath ?? img?.path ?? img?._writeStream?.path;
     if (!imgPath || !fs.existsSync(imgPath)) {
       console.error("Uploaded image path not found:", imgPath, img);
       return res.status(400).json({ error: "Uploaded image file not found on server." });
+    }
+
+    // Validate extension to prevent arbitrary uploads (double-check server-side)
+    const ext = imgPath ? path.extname(imgPath).toLowerCase() : '';
+    if (!ALLOWED_UPLOAD_EXTS.has(ext)) {
+      try {
+        fs.unlinkSync(imgPath);
+      } catch (error_) {
+        console.error('Failed to remove disallowed upload:', error_);
+      }
+      console.error('Uploaded file extension not allowed:', ext);
+      return res.status(400).json({ error: 'Uploaded file type not allowed.' });
     }
 
     const fileBuffer = fs.readFileSync(imgPath);
@@ -92,8 +119,8 @@ export default async function handler(req, res) {
       } else if (response.output_text) {
         analysisText = response.output_text;
       }
-    } catch (parseErr) {
-      console.error("Error parsing OpenAI response:", parseErr, response);
+    } catch (error_) {
+      console.error("Error parsing OpenAI response:", error_, response);
     }
 
     if (!analysisText) {

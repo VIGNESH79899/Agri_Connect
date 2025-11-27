@@ -12,12 +12,12 @@
     <h3 class="mb-3">Login</h3>
     <form id="loginForm">
       <div class="mb-3">
-        <label class="form-label">Email</label>
-        <input id="email" type="email" class="form-control" required>
+        <label for="email" class="form-label">Email</label>
+        <input id="email" type="email" class="form-control" required placeholder="you@example.com" title="Email address">
       </div>
       <div class="mb-3">
-        <label class="form-label">Password</label>
-        <input id="password" type="password" class="form-control" required>
+        <label for="password" class="form-label">Password</label>
+        <input id="password" type="password" class="form-control" required placeholder="Enter your password" title="Password">
       </div>
 
       <div class="d-flex gap-2">
@@ -31,13 +31,18 @@
 
   <script>
     function getUsers(){
-      try{ return JSON.parse(localStorage.getItem('agri_users')||'{}'); }catch(e){return{}};
+      try{
+        return JSON.parse(localStorage.getItem('agri_users')||'{}');
+      } catch(e) {
+        console.error('Failed to parse agri_users from localStorage', e);
+        return {};
+      }
     }
 
     async function hashPassword(pw) {
       const enc = new TextEncoder();
       const data = enc.encode(pw);
-      const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+      const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data);
       return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
@@ -59,7 +64,7 @@
             valid = true;
             migrated = true;
           }
-        } catch(e) {}
+        } catch(e) { console.error('Password migration check failed', e); }
       }
       if(!valid) return alert('Invalid credentials');
       // login success
