@@ -2136,7 +2136,15 @@ document.getElementById("cropAnalysisForm").addEventListener("submit", async (e)
       body: formData,
     });
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (error_) {
+      // If server returned non-JSON (HTML or plain text), show the text for debugging
+      console.warn('Failed to parse JSON response from /api/analyze:', error_);
+      const txt = await response.text();
+      data = { error: txt || 'Server returned non-JSON response' };
+    }
 
     if (!response.ok) {
       resultBox.innerText = "Error: " + (data.error || "Unknown error.");

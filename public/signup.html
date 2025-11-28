@@ -12,20 +12,20 @@
     <h3 class="mb-3">Create Account</h3>
     <form id="signupForm">
       <div class="mb-3">
-        <label class="form-label">Full name</label>
-        <input id="name" class="form-control" required>
+        <label class="form-label" for="name">Full name</label>
+        <input id="name" class="form-control" placeholder="Your full name" title="Full name" required>
       </div>
       <div class="mb-3">
-        <label class="form-label">Email</label>
-        <input id="email" type="email" class="form-control" required>
+        <label class="form-label" for="email">Email</label>
+        <input id="email" type="email" class="form-control" placeholder="you@example.com" title="Email address" required>
       </div>
       <div class="mb-3">
-        <label class="form-label">Password</label>
-        <input id="password" type="password" class="form-control" minlength="6" required>
+        <label class="form-label" for="password">Password</label>
+        <input id="password" type="password" class="form-control" placeholder="At least 6 characters" title="Password" minlength="6" required>
       </div>
       <div class="mb-3">
-        <label class="form-label">Confirm password</label>
-        <input id="password2" type="password" class="form-control" minlength="6" required>
+        <label class="form-label" for="password2">Confirm password</label>
+        <input id="password2" type="password" class="form-control" placeholder="Re-enter password" title="Confirm password" minlength="6" required>
       </div>
 
       <div class="d-flex gap-2">
@@ -39,14 +39,16 @@
   <script>
     // users stored in localStorage under key 'agri_users' as { email: {name, email, password} }
     function getUsers(){
-      try{ return JSON.parse(localStorage.getItem('agri_users')||'{}'); }catch(e){return{}};
+      try{ return JSON.parse(localStorage.getItem('agri_users')||'{}'); }catch(error_){ console.warn('Failed to parse stored users', error_); return {}; }
     }
     function saveUsers(u){ localStorage.setItem('agri_users', JSON.stringify(u)); }
 
     async function hashPassword(pw) {
       const enc = new TextEncoder();
       const data = enc.encode(pw);
-      const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+      const subtle = globalThis.crypto?.subtle;
+      if (!subtle) throw new Error('Crypto not available');
+      const hashBuffer = await subtle.digest('SHA-256', data);
       return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
