@@ -2111,7 +2111,8 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
 // -----------------------
-// CROP ANALYSIS (Image Upload + OpenAI)
+// CROP ANALYSIS (Image Upload — server will use Gemini/OpenAI/Claude based on env)
+// Client posts the image to `/api/analyze` and displays the returned analysis.
 // -----------------------
 
 document.getElementById("cropAnalysisForm").addEventListener("submit", async (e) => {
@@ -2119,6 +2120,7 @@ document.getElementById("cropAnalysisForm").addEventListener("submit", async (e)
 
   const input = document.getElementById("cropImage");
   const resultBox = document.getElementById("cropAnalysisResult");
+  const analyzeBtn = document.getElementById('analyzeCropBtn');
 
   if (!input.files.length) {
     resultBox.innerText = "Please upload an image.";
@@ -2128,6 +2130,8 @@ document.getElementById("cropAnalysisForm").addEventListener("submit", async (e)
   const formData = new FormData();
   formData.append("image", input.files[0]); // field name "image" must match analyze.js
 
+  analyzeBtn.disabled = true;
+  analyzeBtn.textContent = 'Analyzing...';
   resultBox.innerText = "Analyzing crop... please wait.";
 
   try {
@@ -2140,7 +2144,7 @@ document.getElementById("cropAnalysisForm").addEventListener("submit", async (e)
     try {
       data = await response.json();
     } catch (error_) {
-      // If server returned non-JSON (HTML or plain text), show the text for debugging
+      // If the server returned non-JSON (HTML or plain text), show the text for debugging
       console.warn('Failed to parse JSON response from /api/analyze:', error_);
       const txt = await response.text();
       data = { error: txt || 'Server returned non-JSON response' };
@@ -2151,10 +2155,63 @@ document.getElementById("cropAnalysisForm").addEventListener("submit", async (e)
       return;
     }
 
-    resultBox.innerText = data.analysis || "No analysis returned.";
+    // Extract likely analysis text from a variety of provider response shapes
+    function handleCommonKeys(obj, candidates) {
+      const keys = ['analysis','analysisText','text','output_text','summary','completion'];
+      for (const k of keys) {
+        if (obj[k]) candidates.push(obj[k]);
+      }
+    }
+
+    function handleChoices(obj, candidates) {
+      if (!Array.isArray(obj.choices)) return;
+      const t = obj.choices.map(c => c?.text || (c?.message?.content) || '').filter(Boolean).join('\n\n');
+      if (t) candidates.push(t);
+    }
+
+    function handleOutputArray(obj, candidates) {
+      if (!Array.isArray(obj.output)) return;
+      const t = obj.output.map(o => {
+        if (typeof o === 'string') return o;
+        if (Array.isArray(o.content)) return o.content.map(c => c?.text || '').filter(Boolean).join(' ');
+        return '';
+      }).filter(Boolean).join('\n\n');
+      if (t) candidates.push(t);
+    }
+
+    function handleMessageContent(obj, candidates) {
+      const mc = obj.message?.content;
+      if (!mc || !Array.isArray(mc)) return;
+      candidates.push(mc.map(c => (typeof c === 'string' ? c : c?.text || '')).filter(Boolean).join('\n\n'));
+    }
+
+    function extractAnalysis(obj) {
+      if (!obj) return '';
+      if (typeof obj === 'string') return obj;
+
+      const candidates = [];
+      handleCommonKeys(obj, candidates);
+      handleChoices(obj, candidates);
+      handleOutputArray(obj, candidates);
+      handleMessageContent(obj, candidates);
+
+      if (obj.response) candidates.push(typeof obj.response === 'string' ? obj.response : JSON.stringify(obj.response));
+      if (obj.raw && typeof obj.raw === 'string') candidates.push(obj.raw);
+
+      return candidates.filter(Boolean).join('\n\n');
+    }
+
+    const analysisText = extractAnalysis(data) || extractAnalysis(data?.data) || '';
+
+    if (analysisText) resultBox.innerText = analysisText;
+    else resultBox.innerText = JSON.stringify(data, null, 2).slice(0, 2000) || 'No analysis returned.';
+
   } catch (err) {
     console.error('Crop analysis error', err);
     resultBox.innerText = "Error analyzing image.";
+  } finally {
+    analyzeBtn.disabled = false;
+    analyzeBtn.textContent = 'Analyze Crop';
   }
 });
 
